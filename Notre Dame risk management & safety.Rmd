@@ -1,0 +1,182 @@
+---
+title: "Notre dame safety department"
+author: "Riddhi Sharma"
+date: '`r Sys.Date()`'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+Load in the Data
+```{r}
+labs <- read_excel("LISP_Data.xlsx", sheet="Lab Info Data")
+```
+
+```{r}
+summary(labs$`LISP Assessment Score`)
+```
+
+```{r}
+summary(labs$`Risk Assessment Score`)
+```
+
+```{r}
+summary(labs$`Risk Matrix Tier`)
+```
+
+The values of Risk Assessment Score and Risk Matrix Tier look good, but I need to convert the LISP Assessment Score column to a float data type. I will filter out the VPPs and ensure all the remaining values fall within the range of 0 to 1.
+
+```{r}
+labs <- labs %>%
+  filter(`LISP Assessment Score` != "VPP" & `LISP Assessment Score` != "N/A")
+
+labs$`LISP Assessment Score` <- as.numeric(labs$`LISP Assessment Score`)
+summary(labs$`LISP Assessment Score`)
+```
+
+Convert Risk Matrix Tier column as factor for segmenting scatter plot
+
+```{r}
+labs$`Risk Matrix Tier` <- as.factor(labs$`Risk Matrix Tier`)
+```
+
+Now, I will create a scatter plot of LISP Assessment Score against Risk Assessment Score and segment each point by Risk Matrix Tier.
+
+```{r}
+g_1 <- ggplot(labs,
+              aes(y = `Risk Assessment Score`, 
+                  x = `LISP Assessment Score`, 
+                  color = `Risk Matrix Tier`)) + 
+  geom_point() + 
+  theme_bw() + 
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank()) +
+  scale_color_manual(values =  c("1" = "green", "2" = "blue", "3" = "red")) +
+  labs(y = "Risk Assessment Score", 
+       x = "LISP Assessment Score",
+       color = "Risk Matrix Tier",
+       title = "LISP Assessment Score v Risk Assessment Score and Risk Matrix Tier")
+
+g_1
+
+```
+
+Loading the Data
+First, I am downloading the BSL-2 Action items sheet from Excel
+
+
+```{r}
+library(readxl)
+bsl_action <- read_excel("LISP_Data.xlsx", sheet="BSL-2 Action Items")
+head(bsl_action)
+```
+
+Remove rows generate from Tableau and NAs
+
+```{r}
+library(dplyr)
+library(tidyr)
+bsl_action <- bsl_action[1:120,-c(22:31)]
+```
+
+#Visualizations
+
+
+```{r}
+library(ggplot2)
+library(forcats)
+g_1 <- ggplot(bsl_action,
+              aes(x = fct_rev(fct_infreq(Department)))) + 
+  geom_bar(fill="blue") + 
+  coord_flip() +
+  theme_bw() + 
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        axis.text = element_text(face="bold"),
+        plot.title = element_text(hjust = 0.5)) +
+  labs(y = "Number of Action Items", 
+       x = "Department",
+       title = "Number of Action Items per Department") +
+  geom_text(stat='count', aes(label=..count..), hjust= -.5)
+
+g_1
+```
+
+
+```{r}
+g_2 <- ggplot(bsl_action,
+              aes(x = fct_rev(fct_infreq(Category)))) + 
+  geom_bar(fill="red") + 
+  coord_flip() +
+  theme_bw() + 
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        axis.text = element_text(face="bold"),
+        plot.title = element_text(hjust = 0.5)) +
+  labs(y = "Number of Action Items", 
+       x = "Category",
+       title = "Number of Action Items per Category") +
+  geom_text(stat='count', aes(label=..count..), hjust= -.3)
+
+g_2
+```
+
+What Question Numbers were most applicable for BSL-2 Action Items?
+
+```{r}
+bsl_action$Number <- as.factor(bsl_action$Number)
+
+g_3 <- ggplot(bsl_action,
+              aes(x = fct_rev(fct_infreq(Number)))) + 
+  geom_bar(fill="steelblue4") + 
+  coord_flip() +
+  theme_bw() + 
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        axis.text = element_text(face="bold"),
+        plot.title = element_text(hjust = 0.5)) +
+  labs(y = "Number of Action Items", 
+       x = "Question #",
+       title = "Number of Action Items per Question No.") +
+  geom_text(stat='count', aes(label=..count..), hjust= -.3)
+
+g_3
+```
+
+
+Where are the locations of Repeat Findings? What Question Number?
+
+```{r}
+bsl_action %>%
+  filter(`Repeat Findings` == "Yes") %>%
+  distinct(Location, `Question #`, Question)
+
+```
+
+Heatmap of Action Statuses
+
+```{r}
+set.seed(32)
+sample <- bsl_action[sample(length(bsl_action), 10),]
+
+g_4 <- ggplot(sample, aes(y = Number, x = Location, fill = Status)) + 
+    geom_tile() + 
+    labs(x = "Location", y = "Question", fill = "Status") + 
+  theme(axis.text.x = element_text(angle = 40, vjust = 0.5))
+g_4 
+```
+
